@@ -2,10 +2,11 @@
   "use strict";
 
   const DEAD_ZONE = 0.55;
-  const MOVE_FIRST_DELAY = 240;
-  const MOVE_REPEAT = 135;
-  const ACTION_PULSE = 65;
-  const POLL_INTERVAL = 32; // 約30fps。60fps監視より軽い
+  const POLL_INTERVAL = 32;
+  const MOVE_FIRST_DELAY = 260;
+  const MOVE_REPEAT = 170;
+  const MOVE_PRESS_TIME = 90;
+  const ACTION_PRESS_TIME = 70;
 
   const KEY = {
     LEFT: 37,
@@ -24,28 +25,35 @@
   let timer = 0;
 
   const moveState = {
-    37: { down: false, next: 0 },
-    38: { down: false, next: 0 },
-    39: { down: false, next: 0 },
-    40: { down: false, next: 0 }
+    37: { held: false, next: 0, releaseTimer: 0 },
+    38: { held: false, next: 0, releaseTimer: 0 },
+    39: { held: false, next: 0, releaseTimer: 0 },
+    40: { held: false, next: 0, releaseTimer: 0 }
   };
 
   const buttonState = Object.create(null);
 
-  function setKey(code, pressed) {
-    if (typeof pushing_key_list === "undefined") return;
-
-    const value = pressed ? 1 : 0;
-    if (pushing_key_list[code] !== value) {
-      pushing_key_list[code] = value;
+  function keyDown(code) {
+    if (typeof document.onkeydown === "function") {
+      document.onkeydown({ keyCode: code });
+    } else if (typeof pushing_key_list !== "undefined") {
+      pushing_key_list[code] = 1;
     }
   }
 
-  function pulse(code) {
-    setKey(code, true);
-    setTimeout(function () {
-      setKey(code, false);
-    }, ACTION_PULSE);
+  function keyUp(code) {
+    if (typeof document.onkeyup === "function") {
+      document.onkeyup({ keyCode: code });
+    } else if (typeof pushing_key_list !== "undefined") {
+      pushing_key_list[code] = 0;
+    }
+  }
+
+  function pulse(code, duration) {
+    keyDown(code);
+    return window.setTimeout(function () {
+      keyUp(code);
+    }, duration);
   }
 
   function isPressed(pad, index) {
@@ -53,39 +61,54 @@
     return !!button && (button.pressed || button.value > 0.5);
   }
 
+  function repeatMove(code, down, now) {
+    const state = moveState[code];
+
+    if (!down) {
+      if (state.releaseTimer) {
+        clearTimeout(state.releaseTimer);
+        state.releaseTimer = 0;
+      }
+      if (state.held) keyUp(code);
+      state.held = false;
+      state.next = 0;
+      return;
+    }
+
+    if (!state.held) {
+      state.held = true;
+      state.next = now + MOVE_FIRST_DELAY;
+      state.releaseTimer = pulse(code, MOVE_PRESS_TIME);
+      return;
+    }
+
+    if (now >= state.next) {
+      state.next = now + MOVE_REPEAT;
+      if (state.releaseTimer) clearTimeout(state.releaseTimer);
+      state.releaseTimer = pulse(code, MOVE_PRESS_TIME);
+    }
+  }
+
   function edgeButton(pad, index, code) {
     const down = isPressed(pad, index);
     const before = !!buttonState[index];
-
-    if (down && !before) {
-      pulse(code);
-    }
-
+    if (down && !before) pulse(code, ACTION_PRESS_TIME);
     buttonState[index] = down;
   }
 
-  function repeatMove(code, down) {
-    const state = moveState[code];
-
-    if (state.down === down) return;
-
-    state.down = down;
-    state.next = 0;
-    setKey(code, down);
-  }
-
   function releaseAll() {
-    Object.keys(moveState).forEach(function (code) {
-      const n = Number(code);
-      setKey(n, false);
-      moveState[n].down = false;
-      moveState[n].next = 0;
+    Object.keys(moveState).forEach(function (codeText) {
+      const code = Number(codeText);
+      const state = moveState[code];
+      if (state.releaseTimer) clearTimeout(state.releaseTimer);
+      state.releaseTimer = 0;
+      state.held = false;
+      state.next = 0;
+      keyUp(code);
     });
 
     [KEY.MAP, KEY.MENU, KEY.DIRECTION, KEY.SHOOT, KEY.CANCEL, KEY.ACTION]
-      .forEach(function (code) {
-        setKey(code, false);
-      });
+      .forEach(keyUp);
 
     Object.keys(buttonState).forEach(function (index) {
       buttonState[index] = false;
@@ -94,7 +117,6 @@
 
   function findPad() {
     if (!navigator.getGamepads) return null;
-
     const pads = navigator.getGamepads();
 
     if (activePadIndex !== null) {
@@ -115,19 +137,19 @@
 
   function poll() {
     const pad = findPad();
-
     if (!pad) {
       releaseAll();
       return;
     }
 
+    const now = performance.now();
     const x = pad.axes[0] || 0;
     const y = pad.axes[1] || 0;
 
-    repeatMove(KEY.LEFT,  isPressed(pad, 14) || x < -DEAD_ZONE);
-    repeatMove(KEY.RIGHT, isPressed(pad, 15) || x >  DEAD_ZONE);
-    repeatMove(KEY.UP,    isPressed(pad, 12) || y < -DEAD_ZONE);
-    repeatMove(KEY.DOWN,  isPressed(pad, 13) || y >  DEAD_ZONE);
+    repeatMove(KEY.LEFT,  isPressed(pad, 14) || x < -DEAD_ZONE, now);
+    repeatMove(KEY.RIGHT, isPressed(pad, 15) || x >  DEAD_ZONE, now);
+    repeatMove(KEY.UP,    isPressed(pad, 12) || y < -DEAD_ZONE, now);
+    repeatMove(KEY.DOWN,  isPressed(pad, 13) || y >  DEAD_ZONE, now);
 
     edgeButton(pad, 0, KEY.ACTION);
     edgeButton(pad, 1, KEY.CANCEL);
@@ -140,8 +162,7 @@
   }
 
   function start() {
-    if (timer) return;
-    timer = window.setInterval(poll, POLL_INTERVAL);
+    if (!timer) timer = window.setInterval(poll, POLL_INTERVAL);
   }
 
   window.addEventListener("gamepadconnected", function (event) {
@@ -154,5 +175,6 @@
     activePadIndex = null;
   });
 
+  window.addEventListener("blur", releaseAll);
   window.addEventListener("load", start);
 })();
