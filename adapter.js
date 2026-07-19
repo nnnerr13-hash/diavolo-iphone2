@@ -96,51 +96,6 @@ function ResetDataAndReload(e) {
 }
 function InitInput() {
     var canv = document.getElementById("c0");
-    if (!canv) {
-        return;
-    }
-
-    // iPhone/Safari: stop page gestures from stealing game input.
-    canv.style.touchAction = "none";
-    canv.style.webkitUserSelect = "none";
-    canv.style.userSelect = "none";
-    canv.style.webkitTouchCallout = "none";
-
-    function clearDirectionalInput() {
-        pushing_key_list[37] = 0;
-        pushing_key_list[38] = 0;
-        pushing_key_list[39] = 0;
-        pushing_key_list[40] = 0;
-        pre_pos = [0, 0];
-        isClick = false;
-    }
-
-    function canvasPoint(clientX, clientY) {
-        var rect = canv.getBoundingClientRect();
-        var scaleX = rect.width ? canv.width / rect.width : 1;
-        var scaleY = rect.height ? canv.height / rect.height : 1;
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
-    }
-
-    function pressAt(clientX, clientY) {
-        var point = canvasPoint(clientX, clientY);
-        reset_input(point.x, point.y);
-        isClick = true;
-    }
-
-    function moveAt(clientX, clientY) {
-        if (!isClick) {
-            return;
-        }
-        var point = canvasPoint(clientX, clientY);
-        if (is_changed(point.x, point.y)) {
-            reset_input(point.x, point.y);
-        }
-    }
-
     document.onkeydown = function (e) {
         pushing_key_list[e.keyCode] = 1;
         e.preventDefault();
@@ -149,24 +104,20 @@ function InitInput() {
         pushing_key_list[e.keyCode] = 0;
         e.preventDefault();
     };
-
     var buttons = document.getElementsByTagName("button");
     for (var i = 0; i < buttons.length; ++i) {
-        var button = buttons[i];
-        button.style.touchAction = "manipulation";
-        button.style.webkitTouchCallout = "none";
-
-        if (button.id == "reset_data") {
-            button.onclick = ResetDataAndReload;
+        if (buttons[i].id == "reset_data") {
+            buttons[i].onmouseup = ResetDataAndReload;
+            buttons[i].ontouchend = ResetDataAndReload;
             continue;
         }
-        if (button.id == "debug_data") {
-            button.onclick = data_update_for_debug;
+        if (buttons[i].id == "debug_data") {
+            buttons[i].onmouseup = data_update_for_debug;
+            buttons[i].ontouchend = data_update_for_debug;
             continue;
         }
-        if (button.id == "XH") {
-            button.onclick = function (e) {
-                e.preventDefault();
+        if (buttons[i].id == "XH") {
+            buttons[i].onmousedown = function (e) {
                 if (pushing_key_list[88] > 0) {
                     pushing_key_list[88] = 0;
                     this.style.border = 'inset 2px';
@@ -176,82 +127,60 @@ function InitInput() {
                     this.style.border = '';
                 }
             };
+            buttons[i].ontouchstart = function (e) {
+                if (pushing_key_list[88] > 0) {
+                    console.log(e);
+                    pushing_key_list[88] = 0;
+                    this["style"].border = 'inset 2px';
+                }
+                else {
+                    pushing_key_list[88] = 1;
+                    this["style"].border = '';
+                }
+            };
             continue;
         }
-
-        (function (target) {
-            function down(e) {
-                e.preventDefault();
-                pushing_key_list[target.id] = 1;
-            }
-            function up(e) {
-                e.preventDefault();
-                pushing_key_list[target.id] = 0;
-            }
-            target.addEventListener("pointerdown", down, { passive: false });
-            target.addEventListener("pointerup", up, { passive: false });
-            target.addEventListener("pointercancel", up, { passive: false });
-            target.addEventListener("pointerleave", up, { passive: false });
-        })(button);
+        buttons[i].onmousedown = function (e) {
+            pushing_key_list[this.id] = 1;
+        };
+        buttons[i].onmouseup = function (e) {
+            pushing_key_list[this.id] = 0;
+        };
+        buttons[i].ontouchstart = function (e) {
+            pushing_key_list[this.id] = 1;
+        };
+        buttons[i].ontouchend = function (e) {
+            pushing_key_list[this.id] = 0;
+        };
     }
-
-    function pointerDown(e) {
-        e.preventDefault();
-        if (canv.setPointerCapture) {
-            try { canv.setPointerCapture(e.pointerId); } catch (err) { }
+    ;
+    canv.onmousedown = function (e) {
+        reset_input(e.x, e.y);
+        isClick = true;
+    };
+    canv.onmousemove = function (e) {
+        if (isClick && is_changed(e.x, e.y)) {
+            reset_input(e.x, e.y);
         }
-        pressAt(e.clientX, e.clientY);
-    }
-    function pointerMove(e) {
-        if (!isClick) {
-            return;
+    };
+    canv.onmouseup = function (e) {
+        reset_input(0, 0);
+        isClick = false;
+    };
+    canv.ontouchstart = function (e) {
+        reset_input(e.touches[0].clientX, e.touches[0].clientY);
+        isClick = true;
+    };
+    canv.ontouchmove = function (e) {
+        if (isClick && is_changed(e.touches[0].clientX, e.touches[0].clientY)) {
+            reset_input(e.touches[0].clientX, e.touches[0].clientY);
         }
-        e.preventDefault();
-        moveAt(e.clientX, e.clientY);
-    }
-    function pointerUp(e) {
-        e.preventDefault();
-        clearDirectionalInput();
-    }
-
-    if (window.PointerEvent) {
-        canv.addEventListener("pointerdown", pointerDown, { passive: false });
-        canv.addEventListener("pointermove", pointerMove, { passive: false });
-        canv.addEventListener("pointerup", pointerUp, { passive: false });
-        canv.addEventListener("pointercancel", pointerUp, { passive: false });
-    }
-    else {
-        // Fallback for older iOS Safari.
-        canv.addEventListener("touchstart", function (e) {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                pressAt(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        }, { passive: false });
-        canv.addEventListener("touchmove", function (e) {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                moveAt(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        }, { passive: false });
-        canv.addEventListener("touchend", function (e) {
-            e.preventDefault();
-            clearDirectionalInput();
-        }, { passive: false });
-        canv.addEventListener("touchcancel", function (e) {
-            e.preventDefault();
-            clearDirectionalInput();
-        }, { passive: false });
-    }
-
-    window.addEventListener("blur", clearDirectionalInput);
-    document.addEventListener("visibilitychange", function () {
-        if (document.hidden) {
-            clearDirectionalInput();
-        }
-    });
+    };
+    canv.ontouchend = function (e) {
+        reset_input(0, 0);
+        isClick = false;
+    };
 }
-
 var last_wait_time = new Date();
 function await_(time) {
     var wait_time = Math.max(time - Math.max(0, new Date().getMilliseconds() - last_wait_time.getMilliseconds()), 0);
@@ -661,17 +590,10 @@ function rnd(num) {
 }
 function screen_(id, display_width, display_height, init_mode, pos_x = null, pos_y = null) {
     if (id == 0) {
-        var viewport = window.visualViewport;
-        var viewportWidth = viewport ? viewport.width : window.innerWidth;
-        var viewportHeight = viewport ? viewport.height : window.innerHeight;
-        var safeSize = Math.max(1, Math.floor(Math.min(viewportWidth, viewportHeight) - 20));
-        display_width = safeSize;
-        display_height = safeSize;
-        canvasSize = safeSize;
-        var pad = document.getElementById("pad");
-        if (pad) {
-            pad.style.top = (display_height + 20) + "px";
-        }
+        display_width = Math.min(window.innerWidth, window.innerHeight) - 20;
+        display_height = Math.min(window.innerWidth, window.innerHeight) - 20;
+        canvasSize = display_width;
+        document.getElementById("pad").style.top = (display_height + 20) + "px";
     }
     buffer(id, display_width, display_height, init_mode);
     canvases[id].style.top = pos_x;
