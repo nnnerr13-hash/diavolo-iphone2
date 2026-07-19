@@ -2,240 +2,136 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#000000">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ディアボロの大冒険</title>
-
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
+    * { box-sizing: border-box; }
+    html, body {
       width: 100%;
-      min-height: 100%;
+      height: 100%;
       margin: 0;
-      padding: 0;
+      overflow: hidden;
       background: #000;
       color: #fff;
-      overflow-x: hidden;
-      -webkit-text-size-adjust: 100%;
+      font-family: sans-serif;
       touch-action: manipulation;
     }
 
-    body {
-      min-height: 100dvh;
-      padding-top: env(safe-area-inset-top);
-      padding-right: env(safe-area-inset-right);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
+    #app {
+      width: 100%;
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding:
+        max(8px, env(safe-area-inset-top))
+        max(8px, env(safe-area-inset-right))
+        max(8px, env(safe-area-inset-bottom))
+        max(8px, env(safe-area-inset-left));
     }
 
     #game-wrap {
-      width: 100%;
-      min-height: calc(
-        100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-      );
-      margin: 0;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     canvas#c0 {
       display: block;
-      width: 100%;
-      height: auto;
-      margin: 0 auto;
-      background: #000;
+      width: min(92vw, calc(100dvh - 16px));
+      height: min(92vw, calc(100dvh - 16px));
+      max-width: none;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: none;
     }
 
     #pad {
+      position: static !important;
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(116px, 1fr));
+      gap: 10px;
+      width: min(310px, 42vw);
+    }
+
+    #pad button {
       width: 100%;
-      margin: 0;
-      padding: 8px 6px 12px;
-      background: #111;
+      min-height: 54px;
+      padding: 8px 6px;
+      font-size: 17px;
+      font-weight: 700;
+      border-radius: 12px;
+    }
+
+    #extra {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      line-height: 1.45;
       text-align: center;
     }
 
-    #main-buttons {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 6px;
-      width: 100%;
+    #reset_data, #debug_data {
+      min-height: 42px !important;
+      font-size: 13px !important;
     }
 
-    button {
-      min-width: 0;
-      min-height: 48px;
-      margin: 0;
-      padding: 6px 2px;
-      border: 1px solid #777;
-      border-radius: 12px;
-      background: #f2f2f2;
-      color: #111;
-      font: 600 15px/1.2 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
-      -webkit-appearance: none;
-      appearance: none;
-      touch-action: manipulation;
-    }
-
-    button:active {
-      transform: scale(0.97);
-      background: #d8d8d8;
-    }
-
-    #XH {
-      width: 100%;
-      margin-top: 6px;
-    }
-
-    #extras {
-      margin-top: 10px;
-      font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
-    }
-
-    #bgm {
-      vertical-align: middle;
-    }
-
-    #data-buttons {
-      display: grid;
-      grid-template-columns: 2fr 3fr;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    #reset_data,
-    #debug_data {
-      width: 100%;
-      min-height: 36px;
-      font-size: 11px;
-    }
-
-    /* iPhone横画面 */
-    @media (orientation: landscape) {
-      html,
-      body {
-        height: 100%;
-        overflow: hidden;
-      }
-
-      #game-wrap {
-        display: grid;
-        grid-template-columns: minmax(245px, 20vw) minmax(0, 1fr);
-        grid-template-areas: "pad game";
-        align-items: center;
-        width: 100%;
-        height: calc(
-          100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-        );
-        min-height: 0;
-        overflow: hidden;
-        background: #000;
-      }
-
-      #pad {
-        grid-area: pad;
-        align-self: stretch;
-        width: 100%;
-        height: 100%;
-        padding: 8px;
-        display: flex;
+    @media (orientation: portrait) {
+      #app {
         flex-direction: column;
         justify-content: center;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
+        gap: 10px;
+        overflow: auto;
       }
 
       canvas#c0 {
-        grid-area: game;
-        justify-self: center;
-        align-self: center;
-
-        /*
-          内部解像度はadapter.js側の340×340のまま。
-          表示だけ、横画面で使える最大サイズまで拡大する。
-        */
-        width: min(
-          calc(100vw - max(245px, 20vw) - env(safe-area-inset-left) - env(safe-area-inset-right)),
-          calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))
-        ) !important;
-        height: min(
-          calc(100vw - max(245px, 20vw) - env(safe-area-inset-left) - env(safe-area-inset-right)),
-          calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))
-        ) !important;
-        max-width: none !important;
-        max-height: none !important;
-        object-fit: contain;
+        width: min(96vw, 58dvh);
+        height: min(96vw, 58dvh);
       }
 
-      #main-buttons {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      #pad {
+        width: min(96vw, 520px);
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
       }
 
-      button {
+      #pad button {
         min-height: 44px;
         font-size: 14px;
       }
 
-      #extras {
-        margin-top: 7px;
-      }
-    }
-
-    /* 縦画面 */
-    @media (orientation: portrait) {
-      #game-wrap {
-        display: flex;
-        flex-direction: column;
-      }
-
-      canvas#c0 {
-        width: min(
-          100vw,
-          calc(100dvh - 250px)
-        ) !important;
-        height: auto !important;
-        max-width: 100% !important;
+      #extra {
+        display: none;
       }
     }
   </style>
 </head>
-
 <body>
-  <main id="game-wrap">
-    <canvas id="c0"></canvas>
+  <main id="app">
+    <div id="game-wrap">
+      <canvas id="c0"></canvas>
+    </div>
 
     <div id="pad">
-      <div id="main-buttons">
-        <button id="83">S/射撃</button>
-        <button id="67">C/方向</button>
-        <button id="88">X/キャンセル</button>
-        <button id="32">Sp/地図</button>
-        <button id="65">A/メニュー</button>
-        <button id="90">Z/攻撃/選択</button>
-      </div>
-
+      <button id="83">S/射撃</button>
+      <button id="67">C/方向</button>
+      <button id="88">X/キャンセル</button>
+      <button id="32">Sp/地図</button>
+      <button id="65">A/メニュー</button>
+      <button id="90">Z/攻撃/選択</button>
       <button id="XH" hidden>X(Hold)</button>
 
-      <div id="extras">
-        <div>
-          BGMのYouTubeリンク（広告と音量に注意）：
-          <iframe id="bgm" width="48" height="27" src="" frameborder="0"></iframe>
-          <a id="bgmlink" href="" target="_blank" rel="noopener">YouTube</a>
-        </div>
-
-        <div id="data-buttons">
-          <button id="reset_data">データ消去</button>
-          <button id="debug_data">デバッグ：攻略済みにする</button>
-        </div>
+      <div id="extra">
+        BGMのYouTubeリンク（広告と音量に注意）：
+        <iframe id="bgm" width="48" height="27" src="" frameborder="0"></iframe>
+        <a id="bgmlink" href="" target="_blank" rel="noopener">YouTube</a>
       </div>
+
+      <button id="reset_data">データ消去</button>
+      <button id="debug_data">デバッグ：攻略済みにする</button>
     </div>
   </main>
 
