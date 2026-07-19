@@ -322,12 +322,39 @@
       z-index: -1 !important;
     }
 
+  
+    #audio-unlock {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 99999 !important;
+      border: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: rgba(0,0,0,.48) !important;
+      color: #fff !important;
+      font: 700 18px sans-serif !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    #bgm {
+      position: fixed !important;
+      left: 0 !important;
+      bottom: 0 !important;
+      width: 2px !important;
+      height: 2px !important;
+      opacity: 0.01 !important;
+      pointer-events: none !important;
+      display: block !important;
+    }
+
   </style>
 </head>
 <body>
-  <div id="audio-unlock">
-    タップしてBGMを有効化
-  </div>
+  <button id="audio-unlock" type="button">タップしてBGMを有効化</button>
 
 <main id="app">
     <div id="game-wrap">
@@ -372,17 +399,7 @@
 
   <script>
     (function () {
-      /* ---------- BGM ---------- */
-      let audioUnlocked = false;
-
-      function autoplayUrl(url) {
-        if (!url) return "";
-        if (url.indexOf("youtube.com/embed/") === -1) return url;
-        const separator = url.indexOf("?") === -1 ? "?" : "&";
-        return url + separator + "autoplay=1&playsinline=1";
-      }
-
-      function moveBgmOutsideHiddenPad() {
+      function moveBgm() {
         const iframe = document.getElementById("bgm");
         if (iframe && iframe.parentElement !== document.body) {
           document.body.appendChild(iframe);
@@ -390,149 +407,41 @@
         return iframe;
       }
 
-      function startCurrentBgm() {
-        const iframe = moveBgmOutsideHiddenPad();
-        if (!iframe || !iframe.src) return;
+      function playBgm() {
+        const iframe = moveBgm();
+        if (!iframe) return;
 
-        const base = iframe.src
-          .replace(/[?&]autoplay=1/g, "")
-          .replace(/[?&]playsinline=1/g, "")
-          .replace(/[?&]$/, "");
-
-        iframe.src = autoplayUrl(base);
+        try {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "playVideo",
+              args: []
+            }),
+            "*"
+          );
+        } catch (_) {}
       }
 
-      function unlockAudio() {
-        if (audioUnlocked) return;
-        audioUnlocked = true;
-
-        const notice = document.getElementById("audio-unlock");
-        if (notice) notice.remove();
-
-        startCurrentBgm();
-      }
-
-      window.addEventListener("load", function () {
-        moveBgmOutsideHiddenPad();
-
-        /* ゲームのBGM切替関数を軽く包む。常時監視はしない */
-        if (typeof DMLOADMEMORY === "function") {
-          const originalDMLOADMEMORY = DMLOADMEMORY;
-          window.DMLOADMEMORY = function () {
-            const result = originalDMLOADMEMORY.apply(this, arguments);
-            const iframe = moveBgmOutsideHiddenPad();
-
-            if (audioUnlocked && iframe && iframe.src) {
-              const base = iframe.src
-                .replace(/[?&]autoplay=1/g, "")
-                .replace(/[?&]playsinline=1/g, "")
-                .replace(/[?&]$/, "");
-              iframe.src = autoplayUrl(base);
-            }
-            return result;
-          };
-        }
-      });
+      window.addEventListener("load", moveBgm);
 
       const unlock = document.getElementById("audio-unlock");
       if (unlock) {
-        unlock.addEventListener("pointerup", unlockAudio, { once: true });
-        unlock.addEventListener("touchend", unlockAudio, { once: true });
+        unlock.addEventListener("click", function () {
+          unlock.remove();
+
+          const iframe = moveBgm();
+          if (iframe && iframe.src) {
+            const src = iframe.src;
+            if (!src.includes("autoplay=1")) {
+              iframe.src = src + (src.includes("?") ? "&" : "?") + "autoplay=1";
+            }
+          }
+
+          setTimeout(playBgm, 500);
+          setTimeout(playBgm, 1200);
+        }, { once: true });
       }
-
-      /* ---------- コントローラー ---------- */
-      const keyState = Object.create(null);
-      const DEAD_ZONE = 0.45;
-      let polling = false;
-      let rafId = 0;
-
-      const KEY = {
-        LEFT: 37,
-        UP: 38,
-        RIGHT: 39,
-        DOWN: 40,
-        SPACE: 32,
-        A_MENU: 65,
-        C_DIRECTION: 67,
-        S_SHOOT: 83,
-        X_CANCEL: 88,
-        Z_ACTION: 90
-      };
-
-      function setGameKey(code, pressed) {
-        const next = pressed ? 1 : 0;
-        if (keyState[code] === next) return;
-        keyState[code] = next;
-
-        if (typeof pushing_key_list !== "undefined") {
-          pushing_key_list[code] = next;
-        }
-      }
-
-      function releaseAll() {
-        Object.keys(keyState).forEach(function (code) {
-          setGameKey(Number(code), false);
-        });
-      }
-
-      function pressed(gamepad, index) {
-        const button = gamepad.buttons[index];
-        return !!button && (button.pressed || button.value > 0.5);
-      }
-
-      function findGamepad() {
-        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-        for (let i = 0; i < pads.length; i++) {
-          if (pads[i] && pads[i].connected) return pads[i];
-        }
-        return null;
-      }
-
-      function pollGamepad() {
-        if (!polling) return;
-
-        const gamepad = findGamepad();
-        if (!gamepad) {
-          polling = false;
-          releaseAll();
-          return;
-        }
-
-        const x = gamepad.axes[0] || 0;
-        const y = gamepad.axes[1] || 0;
-
-        setGameKey(KEY.LEFT,  pressed(gamepad, 14) || x < -DEAD_ZONE);
-        setGameKey(KEY.RIGHT, pressed(gamepad, 15) || x >  DEAD_ZONE);
-        setGameKey(KEY.UP,    pressed(gamepad, 12) || y < -DEAD_ZONE);
-        setGameKey(KEY.DOWN,  pressed(gamepad, 13) || y >  DEAD_ZONE);
-
-        setGameKey(KEY.Z_ACTION,    pressed(gamepad, 0));
-        setGameKey(KEY.X_CANCEL,    pressed(gamepad, 1));
-        setGameKey(KEY.A_MENU,      pressed(gamepad, 2) || pressed(gamepad, 9));
-        setGameKey(KEY.S_SHOOT,     pressed(gamepad, 3));
-        setGameKey(KEY.C_DIRECTION, pressed(gamepad, 4));
-        setGameKey(KEY.SPACE,       pressed(gamepad, 5) || pressed(gamepad, 8));
-
-        rafId = requestAnimationFrame(pollGamepad);
-      }
-
-      function startGamepadPolling() {
-        if (polling) return;
-        polling = true;
-        rafId = requestAnimationFrame(pollGamepad);
-      }
-
-      window.addEventListener("gamepadconnected", startGamepadPolling);
-      window.addEventListener("gamepaddisconnected", function () {
-        polling = false;
-        cancelAnimationFrame(rafId);
-        releaseAll();
-      });
-
-      /* 既に接続済みの場合だけ開始 */
-      window.addEventListener("load", function () {
-        if (findGamepad()) startGamepadPolling();
-      });
     })();
   </script>
 

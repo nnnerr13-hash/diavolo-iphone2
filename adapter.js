@@ -181,12 +181,14 @@ function InitInput() {
         isClick = false;
     };
 }
-var last_wait_time = new Date();
+var last_wait_time = Date.now();
 function await_(time) {
-    var wait_time = Math.max(time - Math.max(0, new Date().getMilliseconds() - last_wait_time.getMilliseconds()), 0);
-    last_wait_time = new Date();
-    return new Promise((resolve, reject) => {
-        setTimeout(() => resolve(), wait_time);
+    var now = Date.now();
+    var elapsed = Math.max(0, now - last_wait_time);
+    var wait_time = Math.max(time - elapsed, 0);
+    last_wait_time = now + wait_time;
+    return new Promise((resolve) => {
+        setTimeout(resolve, wait_time);
     });
 }
 function bgscr(data0, data1, data2, data3, data4, data5, data6 = null, data7 = null) { undef_func("bgscr", [data0, data1, data2, data3, data4, data5, data6, data7]); }
@@ -744,7 +746,7 @@ function DMLOADMEMORY(music_id, data0, data1) {
         var a_tug = (document.getElementById("bgmlink"));
         a_tug.href = "https://www.youtube.com/watch?v=" + link_id;
         var iframe = document.getElementById("bgm");
-        iframe.src = "https://www.youtube.com/embed/" + link_id;
+        iframe.src = "https://www.youtube.com/embed/" + link_id + "?enablejsapi=1&playsinline=1";
     } else {
         var a_tug = (document.getElementById("bgmlink"));
         a_tug.href = "";
