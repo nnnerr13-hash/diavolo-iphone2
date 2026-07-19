@@ -21,7 +21,6 @@
       overflow-x: hidden;
     }
 
-    /* 元のゲーム構造を維持する */
     canvas {
       display: block;
       width: 100vw;
@@ -30,6 +29,7 @@
       user-select: none;
       -webkit-user-select: none;
       image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     #pad {
@@ -75,7 +75,6 @@
       font-size: 8px;
     }
 
-    /* 横向きでは、ゲーム画面と操作部分を左右に配置 */
     @media screen and (orientation: landscape) {
       html,
       body {
@@ -110,7 +109,6 @@
       }
 
       #pad {
-        position: static;
         width: 28vw;
         height: calc(
           100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
