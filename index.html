@@ -189,6 +189,53 @@
       }
     }
 
+  
+    /* 画面をさらに大きくする */
+    @media (orientation: landscape) {
+      canvas#c0 {
+        left: max(2px, env(safe-area-inset-left)) !important;
+        top: 50% !important;
+        width: calc(100dvh - 2px) !important;
+        height: calc(100dvh - 2px) !important;
+      }
+
+      #pad {
+        right: max(4px, env(safe-area-inset-right)) !important;
+        width: min(330px, calc(100vw - 100dvh - 8px)) !important;
+        gap: 5px !important;
+        overflow: hidden !important;
+      }
+
+      #pad button {
+        min-height: 40px !important;
+        padding: 5px 3px !important;
+        font-size: 13px !important;
+      }
+
+      #extra,
+      #reset_data,
+      #debug_data {
+        display: none !important;
+      }
+    }
+
+    #controller-status {
+      position: fixed;
+      right: max(6px, env(safe-area-inset-right));
+      bottom: max(4px, env(safe-area-inset-bottom));
+      z-index: 30;
+      padding: 4px 7px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.72);
+      color: #aaa;
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    #controller-status.connected {
+      color: #7cff7c;
+    }
+
   </style>
 </head>
 <body>
@@ -216,6 +263,8 @@
       <button id="debug_data">デバッグ：攻略済みにする</button>
     </div>
   </main>
+  <div id="controller-status">コントローラー未接続</div>
+
 
   <script src="classes.js"></script>
   <script src="adapter.js"></script>
@@ -261,6 +310,113 @@
         attributes: true,
         attributeFilter: ["style"]
       });
+    })();
+  </script>
+
+
+  <script>
+    (function () {
+      const keyState = Object.create(null);
+      const DEAD_ZONE = 0.45;
+
+      const KEY = {
+        LEFT: 37,
+        UP: 38,
+        RIGHT: 39,
+        DOWN: 40,
+        SPACE: 32,
+        A_MENU: 65,
+        C_DIRECTION: 67,
+        S_SHOOT: 83,
+        X_CANCEL: 88,
+        Z_ACTION: 90
+      };
+
+      function setGameKey(code, pressed) {
+        const next = pressed ? 1 : 0;
+        if (keyState[code] === next) return;
+        keyState[code] = next;
+
+        if (typeof pushing_key_list !== "undefined") {
+          pushing_key_list[code] = next;
+        }
+      }
+
+      function buttonPressed(gamepad, index) {
+        const button = gamepad.buttons[index];
+        return !!button && (button.pressed || button.value > 0.5);
+      }
+
+      function releaseAll() {
+        Object.keys(keyState).forEach(function (code) {
+          setGameKey(Number(code), false);
+        });
+      }
+
+      function updateStatus(connected, name) {
+        const status = document.getElementById("controller-status");
+        if (!status) return;
+
+        if (connected) {
+          status.textContent = "🎮 接続済み";
+          status.classList.add("connected");
+          status.title = name || "";
+        } else {
+          status.textContent = "コントローラー未接続";
+          status.classList.remove("connected");
+          status.title = "";
+        }
+      }
+
+      function pollGamepad() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let gamepad = null;
+
+        for (let i = 0; i < pads.length; i++) {
+          if (pads[i] && pads[i].connected) {
+            gamepad = pads[i];
+            break;
+          }
+        }
+
+        if (!gamepad) {
+          releaseAll();
+          updateStatus(false);
+          requestAnimationFrame(pollGamepad);
+          return;
+        }
+
+        updateStatus(true, gamepad.id);
+
+        const axisX = gamepad.axes[0] || 0;
+        const axisY = gamepad.axes[1] || 0;
+
+        setGameKey(KEY.LEFT,  buttonPressed(gamepad, 14) || axisX < -DEAD_ZONE);
+        setGameKey(KEY.RIGHT, buttonPressed(gamepad, 15) || axisX >  DEAD_ZONE);
+        setGameKey(KEY.UP,    buttonPressed(gamepad, 12) || axisY < -DEAD_ZONE);
+        setGameKey(KEY.DOWN,  buttonPressed(gamepad, 13) || axisY >  DEAD_ZONE);
+
+        // 標準Gamepad配置
+        setGameKey(KEY.Z_ACTION,    buttonPressed(gamepad, 0));  // A
+        setGameKey(KEY.X_CANCEL,    buttonPressed(gamepad, 1));  // B
+        setGameKey(KEY.A_MENU,      buttonPressed(gamepad, 2) || buttonPressed(gamepad, 9)); // X / START
+        setGameKey(KEY.S_SHOOT,     buttonPressed(gamepad, 3));  // Y
+        setGameKey(KEY.C_DIRECTION, buttonPressed(gamepad, 4));  // L1
+        setGameKey(KEY.SPACE,       buttonPressed(gamepad, 5) || buttonPressed(gamepad, 8)); // R1 / SELECT
+
+        requestAnimationFrame(pollGamepad);
+      }
+
+      window.addEventListener("gamepadconnected", function (event) {
+        updateStatus(true, event.gamepad.id);
+      });
+
+      window.addEventListener("gamepaddisconnected", function () {
+        releaseAll();
+        updateStatus(false);
+      });
+
+      requestAnimationFrame(pollGamepad);
     })();
   </script>
 
