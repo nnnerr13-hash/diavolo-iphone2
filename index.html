@@ -11,333 +11,50 @@
   <title>ディアボロの大冒険</title>
   <style>
     * { box-sizing: border-box; }
+
     html, body {
+      position: fixed;
+      inset: 0;
       width: 100%;
       height: 100%;
       margin: 0;
+      padding: 0;
       overflow: hidden;
+      overscroll-behavior: none;
       background: #000;
-      color: #fff;
-      font-family: sans-serif;
-      touch-action: manipulation;
+      touch-action: none;
     }
 
-    #app {
-      width: 100%;
-      height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding:
-        max(8px, env(safe-area-inset-top))
-        max(8px, env(safe-area-inset-right))
-        max(8px, env(safe-area-inset-bottom))
-        max(8px, env(safe-area-inset-left));
-    }
-
-    #game-wrap {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    canvas#c0 {
-      display: block;
-      width: min(92vw, calc(100dvh - 16px));
-      height: min(92vw, calc(100dvh - 16px));
-      max-width: none;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    #pad {
-      position: static !important;
-      flex: 0 0 auto;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(116px, 1fr));
-      gap: 10px;
-      width: min(310px, 42vw);
-    }
-
-    #pad button {
-      width: 100%;
-      min-height: 54px;
-      padding: 8px 6px;
-      font-size: 17px;
-      font-weight: 700;
-      border-radius: 12px;
-    }
-
-    #extra {
-      grid-column: 1 / -1;
-      font-size: 13px;
-      line-height: 1.45;
-      text-align: center;
-    }
-
-    #reset_data, #debug_data {
-      min-height: 42px !important;
-      font-size: 13px !important;
-    }
-
-    @media (orientation: portrait) {
-      #app {
-        flex-direction: column;
-        justify-content: center;
-        gap: 10px;
-        overflow: auto;
-      }
-
-      canvas#c0 {
-        width: min(96vw, 58dvh);
-        height: min(96vw, 58dvh);
-      }
-
-      #pad {
-        width: min(96vw, 520px);
-        grid-template-columns: repeat(3, 1fr);
-        gap: 7px;
-      }
-
-      #pad button {
-        min-height: 44px;
-        font-size: 14px;
-      }
-
-      #extra {
-        display: none;
-      }
-    }
-  
-    /* iPhone最終レイアウト：adapter.jsがcanvasをbodyへ移しても固定 */
-    body {
-      position: fixed !important;
-      inset: 0 !important;
-      overflow: hidden !important;
-    }
-
-    canvas#c0 {
-      position: fixed !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      max-width: none !important;
-      max-height: none !important;
-      object-fit: contain !important;
-      z-index: 10 !important;
-    }
-
-    #pad {
-      position: fixed !important;
-      margin: 0 !important;
-      z-index: 20 !important;
-      overflow-y: auto !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    @media (orientation: landscape) {
-      canvas#c0 {
-        left: max(4px, env(safe-area-inset-left)) !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        width: min(74vw, calc(100dvh - 8px)) !important;
-        height: min(74vw, calc(100dvh - 8px)) !important;
-      }
-
-      #pad {
-        right: max(8px, env(safe-area-inset-right)) !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        width: min(300px, 25vw) !important;
-        max-height: calc(100dvh - 16px) !important;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 8px !important;
-      }
-
-      #pad button {
-        min-height: 46px !important;
-        font-size: 15px !important;
-      }
-    }
-
-    @media (orientation: portrait) {
-      canvas#c0 {
-        left: 50% !important;
-        top: max(4px, env(safe-area-inset-top)) !important;
-        transform: translateX(-50%) !important;
-        width: min(100vw, 62dvh) !important;
-        height: min(100vw, 62dvh) !important;
-      }
-
-      #pad {
-        left: 50% !important;
-        bottom: max(8px, env(safe-area-inset-bottom)) !important;
-        top: auto !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
-        width: min(96vw, 520px) !important;
-        max-height: 34dvh !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 6px !important;
-      }
-
-      #pad button {
-        min-height: 40px !important;
-        font-size: 13px !important;
-      }
-
-      #extra {
-        display: none !important;
-      }
-    }
-
-  
-    /* 画面をさらに大きくする */
-    @media (orientation: landscape) {
-      canvas#c0 {
-        left: max(2px, env(safe-area-inset-left)) !important;
-        top: 50% !important;
-        width: calc(100dvh - 2px) !important;
-        height: calc(100dvh - 2px) !important;
-      }
-
-      #pad {
-        right: max(4px, env(safe-area-inset-right)) !important;
-        width: min(330px, calc(100vw - 100dvh - 8px)) !important;
-        gap: 5px !important;
-        overflow: hidden !important;
-      }
-
-      #pad button {
-        min-height: 40px !important;
-        padding: 5px 3px !important;
-        font-size: 13px !important;
-      }
-
-      #extra,
-      #reset_data,
-      #debug_data {
-        display: none !important;
-      }
-    }
-
-    #controller-status {
+    #app, #game-wrap {
       position: fixed;
-      right: max(6px, env(safe-area-inset-right));
-      bottom: max(4px, env(safe-area-inset-bottom));
-      z-index: 30;
-      padding: 4px 7px;
-      border-radius: 6px;
-      background: rgba(0, 0, 0, 0.72);
-      color: #aaa;
-      font-size: 11px;
-      pointer-events: none;
-    }
-
-    #controller-status.connected {
-      color: #7cff7c;
-    }
-
-  
-    /* ゲーム画面だけを全画面表示 */
-    html, body {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: hidden !important;
-      overscroll-behavior: none !important;
-      background: #000 !important;
-      touch-action: none !important;
-    }
-
-    #app,
-    #game-wrap {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     canvas#c0 {
-      position: fixed !important;
-      left: 50% !important;
-      top: 50% !important;
-      transform: translate(-50%, -50%) !important;
+      display: block !important;
+      position: static !important;
       width: min(100vw, 100dvh) !important;
       height: min(100vw, 100dvh) !important;
       max-width: none !important;
       max-height: none !important;
       margin: 0 !important;
       padding: 0 !important;
-      image-rendering: pixelated !important;
-      image-rendering: crisp-edges !important;
-      touch-action: none !important;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    #pad,
-    #extra,
-    #reset_data,
-    #debug_data,
-    #controller-status {
+    #pad, #extra, #reset_data, #debug_data, #bgmlink {
       display: none !important;
-    }
-@media (display-mode: standalone) {
-}
-
-  
-    #audio-unlock {
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,.55);
-      color: #fff;
-      font: 700 18px sans-serif;
-      text-align: center;
-      touch-action: manipulation;
-    }
-
-    #bgm {
-      position: fixed !important;
-      left: -10px !important;
-      bottom: -10px !important;
-      width: 1px !important;
-      height: 1px !important;
-      opacity: 0.01 !important;
-      pointer-events: none !important;
-      display: block !important;
-      z-index: -1 !important;
-    }
-
-  
-    #audio-unlock {
-      position: fixed !important;
-      inset: 0 !important;
-      z-index: 99999 !important;
-      border: 0 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      background: rgba(0,0,0,.48) !important;
-      color: #fff !important;
-      font: 700 18px sans-serif !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
     }
 
     #bgm {
@@ -347,16 +64,27 @@
       width: 2px !important;
       height: 2px !important;
       opacity: 0.01 !important;
+      border: 0 !important;
       pointer-events: none !important;
       display: block !important;
     }
 
+    #audio-start {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: rgba(0,0,0,.56);
+      color: #fff;
+      font: 700 18px sans-serif;
+    }
   </style>
 </head>
 <body>
-  <button id="audio-unlock" type="button">タップしてBGMを有効化</button>
-
-<main id="app">
+  <button id="audio-start" type="button">タップしてBGMを有効化</button>
+  <main id="app">
     <div id="game-wrap">
       <canvas id="c0"></canvas>
     </div>
@@ -372,7 +100,7 @@
 
       <div id="extra">
         BGMのYouTubeリンク（広告と音量に注意）：
-        <iframe id="bgm" width="1" height="1" src="" frameborder="0" allow="autoplay; encrypted-media" playsinline></iframe>
+        <iframe id="bgm" width="2" height="2" src="" frameborder="0" allow="autoplay; encrypted-media" playsinline></iframe>
         <a id="bgmlink" href="" target="_blank" rel="noopener">YouTube</a>
       </div>
 
@@ -380,11 +108,10 @@
       <button id="debug_data">デバッグ：攻略済みにする</button>
     </div>
   </main>
-  <div id="controller-status">コントローラー未接続</div>
-
 
   <script src="classes.js"></script>
   <script src="adapter.js"></script>
+  <script src="controller.js"></script>
   <script src="func0.js"></script>
   <script src="func1.js"></script>
   <script src="func2.js"></script>
@@ -399,49 +126,29 @@
 
   <script>
     (function () {
-      function moveBgm() {
-        const iframe = document.getElementById("bgm");
-        if (iframe && iframe.parentElement !== document.body) {
-          document.body.appendChild(iframe);
-        }
-        return iframe;
+      const start = document.getElementById("audio-start");
+      const iframe = document.getElementById("bgm");
+
+      if (iframe && iframe.parentElement !== document.body) {
+        document.body.appendChild(iframe);
       }
 
-      function playBgm() {
-        const iframe = moveBgm();
+      function requestPlay() {
         if (!iframe) return;
-
         try {
           iframe.contentWindow.postMessage(
-            JSON.stringify({
-              event: "command",
-              func: "playVideo",
-              args: []
-            }),
+            JSON.stringify({ event: "command", func: "playVideo", args: [] }),
             "*"
           );
         } catch (_) {}
       }
 
-      window.addEventListener("load", moveBgm);
-
-      const unlock = document.getElementById("audio-unlock");
-      if (unlock) {
-        unlock.addEventListener("click", function () {
-          unlock.remove();
-
-          const iframe = moveBgm();
-          if (iframe && iframe.src) {
-            const src = iframe.src;
-            if (!src.includes("autoplay=1")) {
-              iframe.src = src + (src.includes("?") ? "&" : "?") + "autoplay=1";
-            }
-          }
-
-          setTimeout(playBgm, 500);
-          setTimeout(playBgm, 1200);
-        }, { once: true });
-      }
+      start.addEventListener("click", function () {
+        start.remove();
+        requestPlay();
+        setTimeout(requestPlay, 500);
+        setTimeout(requestPlay, 1200);
+      }, { once: true });
     })();
   </script>
 

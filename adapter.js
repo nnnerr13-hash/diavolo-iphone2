@@ -181,11 +181,11 @@ function InitInput() {
         isClick = false;
     };
 }
-var last_wait_time = Date.now();
+var last_wait_time = performance.now();
 function await_(time) {
-    var now = Date.now();
+    var now = performance.now();
     var elapsed = Math.max(0, now - last_wait_time);
-    var wait_time = Math.max(time - elapsed, 0);
+    var wait_time = Math.max(0, time - elapsed);
     last_wait_time = now + wait_time;
     return new Promise((resolve) => {
         setTimeout(resolve, wait_time);
@@ -592,16 +592,11 @@ function rnd(num) {
 }
 function screen_(id, display_width, display_height, init_mode, pos_x = null, pos_y = null) {
     if (id == 0) {
-        display_width = Math.min(window.innerWidth, window.innerHeight) - 20;
-        display_height = Math.min(window.innerWidth, window.innerHeight) - 20;
         canvasSize = display_width;
-        document.getElementById("pad").style.top = (display_height + 20) + "px";
     }
     buffer(id, display_width, display_height, init_mode);
     canvases[id].style.top = pos_x;
     canvases[id].style.left = pos_y;
-    // c0はindex.html内の#game-wrapに置いたままにする
-    // バッファ用の追加canvasだけbodyへ追加する
     if (id != 0) {
         document.body.appendChild(canvases[id]);
     }
@@ -746,7 +741,7 @@ function DMLOADMEMORY(music_id, data0, data1) {
         var a_tug = (document.getElementById("bgmlink"));
         a_tug.href = "https://www.youtube.com/watch?v=" + link_id;
         var iframe = document.getElementById("bgm");
-        iframe.src = "https://www.youtube.com/embed/" + link_id + "?enablejsapi=1&playsinline=1";
+        iframe.src = "https://www.youtube.com/embed/" + link_id + "?autoplay=1&playsinline=1&enablejsapi=1";
     } else {
         var a_tug = (document.getElementById("bgmlink"));
         a_tug.href = "";
