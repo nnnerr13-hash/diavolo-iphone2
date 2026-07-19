@@ -107,6 +107,88 @@
         display: none;
       }
     }
+  
+    /* iPhone最終レイアウト：adapter.jsがcanvasをbodyへ移しても固定 */
+    body {
+      position: fixed !important;
+      inset: 0 !important;
+      overflow: hidden !important;
+    }
+
+    canvas#c0 {
+      position: fixed !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      max-width: none !important;
+      max-height: none !important;
+      object-fit: contain !important;
+      z-index: 10 !important;
+    }
+
+    #pad {
+      position: fixed !important;
+      margin: 0 !important;
+      z-index: 20 !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media (orientation: landscape) {
+      canvas#c0 {
+        left: max(4px, env(safe-area-inset-left)) !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: min(74vw, calc(100dvh - 8px)) !important;
+        height: min(74vw, calc(100dvh - 8px)) !important;
+      }
+
+      #pad {
+        right: max(8px, env(safe-area-inset-right)) !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: min(300px, 25vw) !important;
+        max-height: calc(100dvh - 16px) !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+      }
+
+      #pad button {
+        min-height: 46px !important;
+        font-size: 15px !important;
+      }
+    }
+
+    @media (orientation: portrait) {
+      canvas#c0 {
+        left: 50% !important;
+        top: max(4px, env(safe-area-inset-top)) !important;
+        transform: translateX(-50%) !important;
+        width: min(100vw, 62dvh) !important;
+        height: min(100vw, 62dvh) !important;
+      }
+
+      #pad {
+        left: 50% !important;
+        bottom: max(8px, env(safe-area-inset-bottom)) !important;
+        top: auto !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        width: min(96vw, 520px) !important;
+        max-height: 34dvh !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+      }
+
+      #pad button {
+        min-height: 40px !important;
+        font-size: 13px !important;
+      }
+
+      #extra {
+        display: none !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -148,5 +230,39 @@
   <script src="func8.js"></script>
   <script src="func9.js"></script>
   <script src="main.js"></script>
+
+  <script>
+    (function () {
+      function lockLayout() {
+        const canvas = document.getElementById("c0");
+        const pad = document.getElementById("pad");
+
+        if (canvas) {
+          canvas.style.removeProperty("left");
+          canvas.style.removeProperty("top");
+        }
+
+        if (pad) {
+          pad.style.removeProperty("left");
+          pad.style.removeProperty("top");
+        }
+      }
+
+      window.addEventListener("load", lockLayout);
+      window.addEventListener("resize", lockLayout);
+      window.addEventListener("orientationchange", function () {
+        setTimeout(lockLayout, 150);
+      });
+
+      const observer = new MutationObserver(lockLayout);
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style"]
+      });
+    })();
+  </script>
+
 </body>
 </html>
