@@ -2,10 +2,8 @@
   "use strict";
 
   const DEAD_ZONE = 0.55;
-  const MOVE_FIRST_DELAY = 240;
-  const MOVE_REPEAT = 135;
-  const ACTION_PULSE = 65;
-  const POLL_INTERVAL = 32; // 約30fps。60fps監視より軽い
+  const POLL_INTERVAL = 32;
+  const ACTION_PULSE = 70;
 
   const KEY = {
     LEFT: 37,
@@ -22,23 +20,22 @@
 
   let activePadIndex = null;
   let timer = 0;
-
-  const moveState = {
-    37: { down: false, next: 0 },
-    38: { down: false, next: 0 },
-    39: { down: false, next: 0 },
-    40: { down: false, next: 0 }
-  };
-
   const buttonState = Object.create(null);
+  const directionState = Object.create(null);
 
   function setKey(code, pressed) {
     if (typeof pushing_key_list === "undefined") return;
-
     const value = pressed ? 1 : 0;
     if (pushing_key_list[code] !== value) {
       pushing_key_list[code] = value;
     }
+  }
+
+  function setDirection(code, down) {
+    const before = !!directionState[code];
+    if (before === down) return;
+    directionState[code] = down;
+    setKey(code, down);
   }
 
   function pulse(code) {
@@ -56,43 +53,14 @@
   function edgeButton(pad, index, code) {
     const down = isPressed(pad, index);
     const before = !!buttonState[index];
-
-    if (down && !before) {
-      pulse(code);
-    }
-
+    if (down && !before) pulse(code);
     buttonState[index] = down;
   }
 
-  function repeatMove(code, down, now) {
-    const state = moveState[code];
-
-    if (!down) {
-      if (state.down) setKey(code, false);
-      state.down = false;
-      state.next = 0;
-      return;
-    }
-
-    if (!state.down) {
-      state.down = true;
-      state.next = now + MOVE_FIRST_DELAY;
-      pulse(code);
-      return;
-    }
-
-    if (now >= state.next) {
-      state.next = now + MOVE_REPEAT;
-      pulse(code);
-    }
-  }
-
   function releaseAll() {
-    Object.keys(moveState).forEach(function (code) {
-      const n = Number(code);
-      setKey(n, false);
-      moveState[n].down = false;
-      moveState[n].next = 0;
+    [KEY.LEFT, KEY.UP, KEY.RIGHT, KEY.DOWN].forEach(function (code) {
+      directionState[code] = false;
+      setKey(code, false);
     });
 
     [KEY.MAP, KEY.MENU, KEY.DIRECTION, KEY.SHOOT, KEY.CANCEL, KEY.ACTION]
@@ -107,7 +75,6 @@
 
   function findPad() {
     if (!navigator.getGamepads) return null;
-
     const pads = navigator.getGamepads();
 
     if (activePadIndex !== null) {
@@ -134,14 +101,17 @@
       return;
     }
 
-    const now = performance.now();
     const x = pad.axes[0] || 0;
     const y = pad.axes[1] || 0;
 
-    repeatMove(KEY.LEFT,  isPressed(pad, 14) || x < -DEAD_ZONE, now);
-    repeatMove(KEY.RIGHT, isPressed(pad, 15) || x >  DEAD_ZONE, now);
-    repeatMove(KEY.UP,    isPressed(pad, 12) || y < -DEAD_ZONE, now);
-    repeatMove(KEY.DOWN,  isPressed(pad, 13) || y >  DEAD_ZONE, now);
+    /*
+      方向入力は押している間ずっと1を維持。
+      ゲーム本体側の長押し・連続移動処理に任せる。
+    */
+    setDirection(KEY.LEFT,  isPressed(pad, 14) || x < -DEAD_ZONE);
+    setDirection(KEY.RIGHT, isPressed(pad, 15) || x >  DEAD_ZONE);
+    setDirection(KEY.UP,    isPressed(pad, 12) || y < -DEAD_ZONE);
+    setDirection(KEY.DOWN,  isPressed(pad, 13) || y >  DEAD_ZONE);
 
     edgeButton(pad, 0, KEY.ACTION);
     edgeButton(pad, 1, KEY.CANCEL);
@@ -154,8 +124,7 @@
   }
 
   function start() {
-    if (timer) return;
-    timer = window.setInterval(poll, POLL_INTERVAL);
+    if (!timer) timer = window.setInterval(poll, POLL_INTERVAL);
   }
 
   window.addEventListener("gamepadconnected", function (event) {
@@ -168,5 +137,6 @@
     activePadIndex = null;
   });
 
+  window.addEventListener("blur", releaseAll);
   window.addEventListener("load", start);
 })();

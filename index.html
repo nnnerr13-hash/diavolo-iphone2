@@ -39,9 +39,14 @@
 
     canvas#c0 {
       display: block !important;
-      position: static !important;
-      width: min(100vw, 100dvh) !important;
-      height: min(100vw, 100dvh) !important;
+      position: fixed !important;
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 100vh !important;
+      height: 100vh !important;
+      width: 100dvh !important;
+      height: 100dvh !important;
       max-width: none !important;
       max-height: none !important;
       margin: 0 !important;
@@ -83,7 +88,7 @@
   </style>
 </head>
 <body>
-  <button id="audio-start" type="button">タップしてBGMを有効化</button>
+  <button id="audio-start" type="button" hidden>タップしてBGMを開始</button>
   <main id="app">
     <div id="game-wrap">
       <canvas id="c0"></canvas>
@@ -128,27 +133,133 @@
     (function () {
       const start = document.getElementById("audio-start");
       const iframe = document.getElementById("bgm");
+      let bgmReady = false;
 
       if (iframe && iframe.parentElement !== document.body) {
         document.body.appendChild(iframe);
       }
 
-      function requestPlay() {
-        if (!iframe) return;
+      function resizeGame() {
+        const canvas = document.getElementById("c0");
+        if (!canvas) return;
+
+        const viewportHeight = window.visualViewport
+          ? window.visualViewport.height
+          : window.innerHeight;
+
+        const screenHeight = window.screen && window.screen.height
+          ? window.screen.height
+          : viewportHeight;
+
+        /*
+          iPhone横画面で visualViewport が半分程度になる場合を避け、
+          利用可能な高さの最大値を採用する。
+        */
+        const availableHeight = Math.max(
+          window.innerHeight || 0,
+          viewportHeight || 0,
+          screenHeight || 0
+        );
+
+        const availableWidth = Math.max(
+          document.documentElement.clientWidth || 0,
+          window.innerWidth || 0
+        );
+
+        const size = Math.floor(Math.min(availableWidth, availableHeight));
+
+        canvas.style.setProperty("width", size + "px", "important");
+        canvas.style.setProperty("height", size + "px", "important");
+        canvas.style.setProperty("left", "50%", "important");
+        canvas.style.setProperty("top", "50%", "important");
+        canvas.style.setProperty(
+          "transform",
+          "translate(-50%, -50%)",
+          "important"
+        );
+      }
+
+      function postPlay() {
+        if (!iframe || !iframe.contentWindow) return;
         try {
           iframe.contentWindow.postMessage(
-            JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+            JSON.stringify({
+              event: "command",
+              func: "playVideo",
+              args: []
+            }),
             "*"
           );
         } catch (_) {}
       }
 
-      start.addEventListener("click", function () {
-        start.remove();
-        requestPlay();
-        setTimeout(requestPlay, 500);
-        setTimeout(requestPlay, 1200);
-      }, { once: true });
+      async function unlockSoundEffects() {
+        if (typeof se === "undefined" || !se) return;
+
+        for (let i = 0; i < se.length; i++) {
+          const audio = se[i];
+          if (!audio || typeof audio.play !== "function") continue;
+
+          try {
+            const oldMuted = audio.muted;
+            const oldVolume = audio.volume;
+            audio.muted = true;
+            audio.volume = 0;
+
+            const result = audio.play();
+            if (result && typeof result.then === "function") {
+              await result.catch(function () {});
+            }
+
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = oldMuted;
+            audio.volume = oldVolume;
+          } catch (_) {}
+        }
+      }
+
+      window.diavoloBgmReady = function () {
+        bgmReady = true;
+        start.hidden = false;
+
+        iframe.addEventListener("load", function () {
+          if (start.hidden) {
+            setTimeout(postPlay, 150);
+          }
+        }, { once: true });
+      };
+
+      start.addEventListener("click", async function () {
+        await unlockSoundEffects();
+
+        start.hidden = true;
+        postPlay();
+        setTimeout(postPlay, 350);
+        setTimeout(postPlay, 900);
+        setTimeout(postPlay, 1600);
+      });
+
+      resizeGame();
+      window.addEventListener("resize", resizeGame);
+      window.addEventListener("orientationchange", function () {
+        setTimeout(resizeGame, 100);
+        setTimeout(resizeGame, 500);
+      });
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", resizeGame);
+      }
+
+      /*
+        キャッシュされたBGM URLが既に入っている場合にもボタンを出す。
+      */
+      window.addEventListener("load", function () {
+        resizeGame();
+        if (iframe && iframe.src && iframe.src.indexOf("/embed/") !== -1) {
+          window.diavoloBgmReady();
+        }
+      });
     })();
   </script>
 
