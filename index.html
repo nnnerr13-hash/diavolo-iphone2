@@ -295,9 +295,40 @@
 @media (display-mode: standalone) {
 }
 
+  
+    #audio-unlock {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.55);
+      color: #fff;
+      font: 700 18px sans-serif;
+      text-align: center;
+      touch-action: manipulation;
+    }
+
+    #bgm {
+      position: fixed !important;
+      left: -10px !important;
+      bottom: -10px !important;
+      width: 1px !important;
+      height: 1px !important;
+      opacity: 0.01 !important;
+      pointer-events: none !important;
+      display: block !important;
+      z-index: -1 !important;
+    }
+
   </style>
 </head>
 <body>
+  <div id="audio-unlock">
+    タップしてBGMを有効化
+  </div>
+
 <main id="app">
     <div id="game-wrap">
       <canvas id="c0"></canvas>
@@ -314,7 +345,7 @@
 
       <div id="extra">
         BGMのYouTubeリンク（広告と音量に注意）：
-        <iframe id="bgm" width="48" height="27" src="" frameborder="0"></iframe>
+        <iframe id="bgm" width="1" height="1" src="" frameborder="0" allow="autoplay; encrypted-media" playsinline></iframe>
         <a id="bgmlink" href="" target="_blank" rel="noopener">YouTube</a>
       </div>
 
@@ -338,10 +369,82 @@
   <script src="func8.js"></script>
   <script src="func9.js"></script>
   <script src="main.js"></script>
-<script>
+
+  <script>
     (function () {
+      /* ---------- BGM ---------- */
+      let audioUnlocked = false;
+
+      function autoplayUrl(url) {
+        if (!url) return "";
+        if (url.indexOf("youtube.com/embed/") === -1) return url;
+        const separator = url.indexOf("?") === -1 ? "?" : "&";
+        return url + separator + "autoplay=1&playsinline=1";
+      }
+
+      function moveBgmOutsideHiddenPad() {
+        const iframe = document.getElementById("bgm");
+        if (iframe && iframe.parentElement !== document.body) {
+          document.body.appendChild(iframe);
+        }
+        return iframe;
+      }
+
+      function startCurrentBgm() {
+        const iframe = moveBgmOutsideHiddenPad();
+        if (!iframe || !iframe.src) return;
+
+        const base = iframe.src
+          .replace(/[?&]autoplay=1/g, "")
+          .replace(/[?&]playsinline=1/g, "")
+          .replace(/[?&]$/, "");
+
+        iframe.src = autoplayUrl(base);
+      }
+
+      function unlockAudio() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+
+        const notice = document.getElementById("audio-unlock");
+        if (notice) notice.remove();
+
+        startCurrentBgm();
+      }
+
+      window.addEventListener("load", function () {
+        moveBgmOutsideHiddenPad();
+
+        /* ゲームのBGM切替関数を軽く包む。常時監視はしない */
+        if (typeof DMLOADMEMORY === "function") {
+          const originalDMLOADMEMORY = DMLOADMEMORY;
+          window.DMLOADMEMORY = function () {
+            const result = originalDMLOADMEMORY.apply(this, arguments);
+            const iframe = moveBgmOutsideHiddenPad();
+
+            if (audioUnlocked && iframe && iframe.src) {
+              const base = iframe.src
+                .replace(/[?&]autoplay=1/g, "")
+                .replace(/[?&]playsinline=1/g, "")
+                .replace(/[?&]$/, "");
+              iframe.src = autoplayUrl(base);
+            }
+            return result;
+          };
+        }
+      });
+
+      const unlock = document.getElementById("audio-unlock");
+      if (unlock) {
+        unlock.addEventListener("pointerup", unlockAudio, { once: true });
+        unlock.addEventListener("touchend", unlockAudio, { once: true });
+      }
+
+      /* ---------- コントローラー ---------- */
       const keyState = Object.create(null);
       const DEAD_ZONE = 0.45;
+      let polling = false;
+      let rafId = 0;
 
       const KEY = {
         LEFT: 37,
@@ -366,82 +469,72 @@
         }
       }
 
-      function buttonPressed(gamepad, index) {
-        const button = gamepad.buttons[index];
-        return !!button && (button.pressed || button.value > 0.5);
-      }
-
       function releaseAll() {
         Object.keys(keyState).forEach(function (code) {
           setGameKey(Number(code), false);
         });
       }
 
-      function updateStatus(connected, name) {
-        const status = document.getElementById("controller-status");
-        if (!status) return;
+      function pressed(gamepad, index) {
+        const button = gamepad.buttons[index];
+        return !!button && (button.pressed || button.value > 0.5);
+      }
 
-        if (connected) {
-          status.textContent = "🎮 接続済み";
-          status.classList.add("connected");
-          status.title = name || "";
-        } else {
-          status.textContent = "コントローラー未接続";
-          status.classList.remove("connected");
-          status.title = "";
+      function findGamepad() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < pads.length; i++) {
+          if (pads[i] && pads[i].connected) return pads[i];
         }
+        return null;
       }
 
       function pollGamepad() {
-        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-        let gamepad = null;
+        if (!polling) return;
 
-        for (let i = 0; i < pads.length; i++) {
-          if (pads[i] && pads[i].connected) {
-            gamepad = pads[i];
-            break;
-          }
-        }
-
+        const gamepad = findGamepad();
         if (!gamepad) {
+          polling = false;
           releaseAll();
-          updateStatus(false);
-          requestAnimationFrame(pollGamepad);
           return;
         }
 
-        updateStatus(true, gamepad.id);
+        const x = gamepad.axes[0] || 0;
+        const y = gamepad.axes[1] || 0;
 
-        const axisX = gamepad.axes[0] || 0;
-        const axisY = gamepad.axes[1] || 0;
+        setGameKey(KEY.LEFT,  pressed(gamepad, 14) || x < -DEAD_ZONE);
+        setGameKey(KEY.RIGHT, pressed(gamepad, 15) || x >  DEAD_ZONE);
+        setGameKey(KEY.UP,    pressed(gamepad, 12) || y < -DEAD_ZONE);
+        setGameKey(KEY.DOWN,  pressed(gamepad, 13) || y >  DEAD_ZONE);
 
-        setGameKey(KEY.LEFT,  buttonPressed(gamepad, 14) || axisX < -DEAD_ZONE);
-        setGameKey(KEY.RIGHT, buttonPressed(gamepad, 15) || axisX >  DEAD_ZONE);
-        setGameKey(KEY.UP,    buttonPressed(gamepad, 12) || axisY < -DEAD_ZONE);
-        setGameKey(KEY.DOWN,  buttonPressed(gamepad, 13) || axisY >  DEAD_ZONE);
+        setGameKey(KEY.Z_ACTION,    pressed(gamepad, 0));
+        setGameKey(KEY.X_CANCEL,    pressed(gamepad, 1));
+        setGameKey(KEY.A_MENU,      pressed(gamepad, 2) || pressed(gamepad, 9));
+        setGameKey(KEY.S_SHOOT,     pressed(gamepad, 3));
+        setGameKey(KEY.C_DIRECTION, pressed(gamepad, 4));
+        setGameKey(KEY.SPACE,       pressed(gamepad, 5) || pressed(gamepad, 8));
 
-        // 標準Gamepad配置
-        setGameKey(KEY.Z_ACTION,    buttonPressed(gamepad, 0));  // A
-        setGameKey(KEY.X_CANCEL,    buttonPressed(gamepad, 1));  // B
-        setGameKey(KEY.A_MENU,      buttonPressed(gamepad, 2) || buttonPressed(gamepad, 9)); // X / START
-        setGameKey(KEY.S_SHOOT,     buttonPressed(gamepad, 3));  // Y
-        setGameKey(KEY.C_DIRECTION, buttonPressed(gamepad, 4));  // L1
-        setGameKey(KEY.SPACE,       buttonPressed(gamepad, 5) || buttonPressed(gamepad, 8)); // R1 / SELECT
-
-        requestAnimationFrame(pollGamepad);
+        rafId = requestAnimationFrame(pollGamepad);
       }
 
-      window.addEventListener("gamepadconnected", function (event) {
-        updateStatus(true, event.gamepad.id);
-      });
+      function startGamepadPolling() {
+        if (polling) return;
+        polling = true;
+        rafId = requestAnimationFrame(pollGamepad);
+      }
 
+      window.addEventListener("gamepadconnected", startGamepadPolling);
       window.addEventListener("gamepaddisconnected", function () {
+        polling = false;
+        cancelAnimationFrame(rafId);
         releaseAll();
-        updateStatus(false);
       });
 
-      requestAnimationFrame(pollGamepad);
+      /* 既に接続済みの場合だけ開始 */
+      window.addEventListener("load", function () {
+        if (findGamepad()) startGamepadPolling();
+      });
     })();
   </script>
+
 </body>
 </html>
