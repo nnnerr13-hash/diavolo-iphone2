@@ -64,27 +64,14 @@
     buttonState[index] = down;
   }
 
-  function repeatMove(code, down, now) {
+  function repeatMove(code, down) {
     const state = moveState[code];
 
-    if (!down) {
-      if (state.down) setKey(code, false);
-      state.down = false;
-      state.next = 0;
-      return;
-    }
+    if (state.down === down) return;
 
-    if (!state.down) {
-      state.down = true;
-      state.next = now + MOVE_FIRST_DELAY;
-      pulse(code);
-      return;
-    }
-
-    if (now >= state.next) {
-      state.next = now + MOVE_REPEAT;
-      pulse(code);
-    }
+    state.down = down;
+    state.next = 0;
+    setKey(code, down);
   }
 
   function releaseAll() {
@@ -134,14 +121,13 @@
       return;
     }
 
-    const now = performance.now();
     const x = pad.axes[0] || 0;
     const y = pad.axes[1] || 0;
 
-    repeatMove(KEY.LEFT,  isPressed(pad, 14) || x < -DEAD_ZONE, now);
-    repeatMove(KEY.RIGHT, isPressed(pad, 15) || x >  DEAD_ZONE, now);
-    repeatMove(KEY.UP,    isPressed(pad, 12) || y < -DEAD_ZONE, now);
-    repeatMove(KEY.DOWN,  isPressed(pad, 13) || y >  DEAD_ZONE, now);
+    repeatMove(KEY.LEFT,  isPressed(pad, 14) || x < -DEAD_ZONE);
+    repeatMove(KEY.RIGHT, isPressed(pad, 15) || x >  DEAD_ZONE);
+    repeatMove(KEY.UP,    isPressed(pad, 12) || y < -DEAD_ZONE);
+    repeatMove(KEY.DOWN,  isPressed(pad, 13) || y >  DEAD_ZONE);
 
     edgeButton(pad, 0, KEY.ACTION);
     edgeButton(pad, 1, KEY.CANCEL);
