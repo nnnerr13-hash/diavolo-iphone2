@@ -2,7 +2,12 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ディアボロ">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
   <title>ディアボロの大冒険</title>
   <style>
     * { box-sizing: border-box; }
@@ -236,9 +241,86 @@
       color: #7cff7c;
     }
 
+  
+    /* ゲーム画面だけを全画面表示 */
+    html, body {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      background: #000 !important;
+      touch-action: none !important;
+    }
+
+    #app,
+    #game-wrap {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    canvas#c0 {
+      position: fixed !important;
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: min(100vw, 100dvh) !important;
+      height: min(100vw, 100dvh) !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      image-rendering: pixelated !important;
+      image-rendering: crisp-edges !important;
+      touch-action: none !important;
+    }
+
+    #pad,
+    #extra,
+    #reset_data,
+    #debug_data,
+    #controller-status {
+      display: none !important;
+    }
+
+    #fullscreen-hint {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.72);
+      color: white;
+      font: 700 18px sans-serif;
+      text-align: center;
+      padding: 24px;
+    }
+
+    @media (display-mode: standalone) {
+      #fullscreen-hint { display: none !important; }
+    }
+
   </style>
 </head>
 <body>
+  <div id="fullscreen-hint">
+    画面をタップ<br>
+    <small style="font-weight:400;margin-top:8px;display:block">
+      検索バーを消すには「ホーム画面に追加」から起動
+    </small>
+  </div>
+
   <main id="app">
     <div id="game-wrap">
       <canvas id="c0"></canvas>
@@ -417,6 +499,49 @@
       });
 
       requestAnimationFrame(pollGamepad);
+    })();
+  </script>
+
+
+  <script>
+    (function () {
+      const hint = document.getElementById("fullscreen-hint");
+
+      function stopRefreshGestures(e) {
+        if (e.cancelable) e.preventDefault();
+      }
+
+      document.addEventListener("touchmove", stopRefreshGestures, { passive: false });
+      document.addEventListener("gesturestart", stopRefreshGestures, { passive: false });
+      document.addEventListener("contextmenu", stopRefreshGestures);
+
+      async function enterFullscreen() {
+        try {
+          const el = document.documentElement;
+          if (el.requestFullscreen) {
+            await el.requestFullscreen();
+          } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen();
+          }
+        } catch (_) {}
+        if (hint) hint.style.display = "none";
+      }
+
+      if (hint) {
+        hint.addEventListener("click", enterFullscreen, { once: true });
+        hint.addEventListener("touchend", enterFullscreen, { once: true });
+      }
+
+      // 戻る・更新操作の誤作動を減らす
+      history.pushState(null, "", location.href);
+      window.addEventListener("popstate", function () {
+        history.pushState(null, "", location.href);
+      });
+
+      window.addEventListener("beforeunload", function (e) {
+        e.preventDefault();
+        e.returnValue = "";
+      });
     })();
   </script>
 
