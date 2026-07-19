@@ -338,9 +338,9 @@ var gamepad_input_state = {
     next_repeat: {},
     button_down: {}
 };
-var GAMEPAD_DEAD_ZONE = 0.55;
-var GAMEPAD_FIRST_REPEAT_DELAY = 260;
-var GAMEPAD_REPEAT_INTERVAL = 135;
+var GAMEPAD_DEAD_ZONE = 0.68;
+var GAMEPAD_FIRST_REPEAT_DELAY = 400;
+var GAMEPAD_REPEAT_INTERVAL = 220;
 
 function gamepad_find_active() {
     if (!navigator.getGamepads) {
