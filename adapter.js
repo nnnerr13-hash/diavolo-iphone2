@@ -55,7 +55,7 @@ function is_changed(x, y) {
     var b2 = canvasSize / 3 * 2;
     if (((pre_pos[0] - b1) * (x - b1) < 0) ||
         ((pre_pos[0] - b2) * (x - b2) < 0) ||
-        ((pre_pos[1] - b2) * (y - b2) < 0) ||
+        ((pre_pos[1] - b1) * (y - b1) < 0) ||
         ((pre_pos[1] - b2) * (y - b2) < 0)) {
         return true;
     }
@@ -197,9 +197,6 @@ function InitInput() {
 
     function pointerDown(e) {
         e.preventDefault();
-        if (canv.setPointerCapture) {
-            try { canv.setPointerCapture(e.pointerId); } catch (err) { }
-        }
         pressAt(e.clientX, e.clientY);
     }
     function pointerMove(e) {
@@ -214,14 +211,15 @@ function InitInput() {
         clearDirectionalInput();
     }
 
-    if (window.PointerEvent) {
+    var useTouchEvents = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+    if (!useTouchEvents && window.PointerEvent) {
         canv.addEventListener("pointerdown", pointerDown, { passive: false });
         canv.addEventListener("pointermove", pointerMove, { passive: false });
         canv.addEventListener("pointerup", pointerUp, { passive: false });
         canv.addEventListener("pointercancel", pointerUp, { passive: false });
     }
     else {
-        // Fallback for older iOS Safari.
+        // iPhone/iPad: use native touch events and avoid pointer-capture issues.
         canv.addEventListener("touchstart", function (e) {
             e.preventDefault();
             if (e.touches.length > 0) {
@@ -660,22 +658,46 @@ function rnd(num) {
     return Math.floor(Math.random() * num);
 }
 function screen_(id, display_width, display_height, init_mode, pos_x = null, pos_y = null) {
+    // Keep the game's internal coordinate system unchanged (normally 340 x 340).
+    // On iPhone only the CSS display size is changed. Changing canvas.width/height
+    // breaks drawing and input coordinates and can make the game appear frozen.
+    buffer(id, display_width, display_height, init_mode);
+
     if (id == 0) {
-        var viewport = window.visualViewport;
-        var viewportWidth = viewport ? viewport.width : window.innerWidth;
-        var viewportHeight = viewport ? viewport.height : window.innerHeight;
-        var safeSize = Math.max(1, Math.floor(Math.min(viewportWidth, viewportHeight) - 20));
-        display_width = safeSize;
-        display_height = safeSize;
-        canvasSize = safeSize;
-        var pad = document.getElementById("pad");
-        if (pad) {
-            pad.style.top = (display_height + 20) + "px";
+        canvasSize = display_width;
+
+        function fitMainCanvas() {
+            var viewport = window.visualViewport;
+            var viewportWidth = viewport ? viewport.width : window.innerWidth;
+            var viewportHeight = viewport ? viewport.height : window.innerHeight;
+            var availableHeight = Math.max(1, viewportHeight - 16);
+            var cssSize = Math.max(1, Math.floor(Math.min(viewportWidth - 16, availableHeight)));
+            var mainCanvas = canvases[0];
+
+            if (!mainCanvas) return;
+            mainCanvas.style.width = cssSize + "px";
+            mainCanvas.style.height = cssSize + "px";
+            mainCanvas.style.maxWidth = "calc(100vw - 16px)";
+            mainCanvas.style.maxHeight = "calc(100dvh - 16px)";
+            mainCanvas.style.objectFit = "contain";
+            mainCanvas.style.touchAction = "none";
+            mainCanvas.style.display = mainCanvas.style.display || "block";
+
+            var pad = document.getElementById("pad");
+            if (pad) {
+                pad.style.top = (cssSize + 16) + "px";
+            }
+        }
+
+        fitMainCanvas();
+        window.addEventListener("resize", fitMainCanvas, { passive: true });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", fitMainCanvas, { passive: true });
         }
     }
-    buffer(id, display_width, display_height, init_mode);
-    canvases[id].style.top = pos_x;
-    canvases[id].style.left = pos_y;
+
+    canvases[id].style.top = pos_x == null ? "0px" : (typeof pos_x === "number" ? pos_x + "px" : pos_x);
+    canvases[id].style.left = pos_y == null ? "0px" : (typeof pos_y === "number" ? pos_y + "px" : pos_y);
     document.body.appendChild(canvases[id]);
     canvases[id].style.display = "none";
 }
