@@ -292,36 +292,13 @@
     #controller-status {
       display: none !important;
     }
-
-    #fullscreen-hint {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,.72);
-      color: white;
-      font: 700 18px sans-serif;
-      text-align: center;
-      padding: 24px;
-    }
-
-    @media (display-mode: standalone) {
-      #fullscreen-hint { display: none !important; }
-    }
+@media (display-mode: standalone) {
+}
 
   </style>
 </head>
 <body>
-  <div id="fullscreen-hint">
-    画面をタップ<br>
-    <small style="font-weight:400;margin-top:8px;display:block">
-      検索バーを消すには「ホーム画面に追加」から起動
-    </small>
-  </div>
-
-  <main id="app">
+<main id="app">
     <div id="game-wrap">
       <canvas id="c0"></canvas>
     </div>
@@ -361,42 +338,7 @@
   <script src="func8.js"></script>
   <script src="func9.js"></script>
   <script src="main.js"></script>
-
-  <script>
-    (function () {
-      function lockLayout() {
-        const canvas = document.getElementById("c0");
-        const pad = document.getElementById("pad");
-
-        if (canvas) {
-          canvas.style.removeProperty("left");
-          canvas.style.removeProperty("top");
-        }
-
-        if (pad) {
-          pad.style.removeProperty("left");
-          pad.style.removeProperty("top");
-        }
-      }
-
-      window.addEventListener("load", lockLayout);
-      window.addEventListener("resize", lockLayout);
-      window.addEventListener("orientationchange", function () {
-        setTimeout(lockLayout, 150);
-      });
-
-      const observer = new MutationObserver(lockLayout);
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["style"]
-      });
-    })();
-  </script>
-
-
-  <script>
+<script>
     (function () {
       const keyState = Object.create(null);
       const DEAD_ZONE = 0.45;
@@ -501,49 +443,5 @@
       requestAnimationFrame(pollGamepad);
     })();
   </script>
-
-
-  <script>
-    (function () {
-      const hint = document.getElementById("fullscreen-hint");
-
-      function stopRefreshGestures(e) {
-        if (e.cancelable) e.preventDefault();
-      }
-
-      document.addEventListener("touchmove", stopRefreshGestures, { passive: false });
-      document.addEventListener("gesturestart", stopRefreshGestures, { passive: false });
-      document.addEventListener("contextmenu", stopRefreshGestures);
-
-      async function enterFullscreen() {
-        try {
-          const el = document.documentElement;
-          if (el.requestFullscreen) {
-            await el.requestFullscreen();
-          } else if (el.webkitRequestFullscreen) {
-            el.webkitRequestFullscreen();
-          }
-        } catch (_) {}
-        if (hint) hint.style.display = "none";
-      }
-
-      if (hint) {
-        hint.addEventListener("click", enterFullscreen, { once: true });
-        hint.addEventListener("touchend", enterFullscreen, { once: true });
-      }
-
-      // 戻る・更新操作の誤作動を減らす
-      history.pushState(null, "", location.href);
-      window.addEventListener("popstate", function () {
-        history.pushState(null, "", location.href);
-      });
-
-      window.addEventListener("beforeunload", function (e) {
-        e.preventDefault();
-        e.returnValue = "";
-      });
-    })();
-  </script>
-
 </body>
 </html>
