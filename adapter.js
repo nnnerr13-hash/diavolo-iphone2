@@ -590,12 +590,19 @@ function rnd(num) {
 }
 function screen_(id, display_width, display_height, init_mode, pos_x = null, pos_y = null) {
     if (id == 0) {
+        display_width = Math.min(window.innerWidth, window.innerHeight) - 20;
+        display_height = Math.min(window.innerWidth, window.innerHeight) - 20;
         canvasSize = display_width;
+        document.getElementById("pad").style.top = (display_height + 20) + "px";
     }
     buffer(id, display_width, display_height, init_mode);
     canvases[id].style.top = pos_x;
     canvases[id].style.left = pos_y;
-    document.body.appendChild(canvases[id]);
+    // c0はindex.html内の#game-wrapに置いたままにする
+    // バッファ用の追加canvasだけbodyへ追加する
+    if (id != 0) {
+        document.body.appendChild(canvases[id]);
+    }
     canvases[id].style.display = "none";
 }
 function sendmsg(data0, data1, data2, data3) { undef_func("sendmsg", [data0, data1, data2, data3]); }
